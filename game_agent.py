@@ -37,9 +37,75 @@ def custom_score(game, player):
         The heuristic value of the current game state to the specified player.
     """
 
-    # TODO: finish this function!
-    raise NotImplementedError
+    return custom_score_award_edge_moves(game, player)
 
+
+def custom_score_my_vs_op_moves(game, player):
+    # Get Opponent
+    opponent = game.get_opponent(player)
+
+    # If there is already a winner
+    if game.is_winner(player):
+        return float('inf')
+    elif game.is_winner(opponent):
+        return float('-inf')
+
+    # Evaluation function
+    number_my_moves = len(game.get_legal_moves(player))
+    number_op_moves = len(game.get_legal_moves(opponent))
+
+    return float(number_my_moves - number_op_moves)
+
+
+def custom_score_award_edge_moves(game, player):
+
+    if game.is_winner(player):
+        return float('inf')
+    if game.is_loser(player):
+        return float('-inf')
+
+    # Get Opponent
+    opponent = game.get_opponent(player)
+
+    # Get locations
+    my_location = game.get_player_location(player)
+    op_location = game.get_player_location(opponent)
+
+    # Determine how far from center
+    center_x = int(game.width / 2)
+    center_y = int(game.height / 2)
+
+    my_steps_from_center = abs(my_location[0] - center_x) + abs(my_location[1] - center_y)
+    op_steps_from_center = abs(op_location[0] - center_x) + abs(op_location[1] - center_y)
+
+    # Available number of moves
+    my_moves = len(game.get_legal_moves(player))
+    op_moves = len(game.get_legal_moves(opponent))
+
+    return float((my_moves + my_steps_from_center) - 100*(op_moves + op_steps_from_center))
+
+
+def custom_score_penalize_edge_moves(game, player):
+
+    # Get Opponent
+    opponent = game.get_opponent(player)
+
+    # Get locations
+    my_location = game.get_player_location(player)
+    op_location = game.get_player_location(opponent)
+
+    # Determine how far from center
+    center_x = int(game.width / 2)
+    center_y = int(game.height / 2)
+
+    my_steps_from_center = abs(my_location[0] - center_x) + abs(my_location[1] - center_y)
+    op_steps_from_center = abs(op_location[0] - center_x) + abs(op_location[1] - center_y)
+
+    # Available number of moves
+    my_moves = len(game.get_legal_moves(player))
+    op_moves = len(game.get_legal_moves(opponent))
+
+    return float((my_moves - my_steps_from_center) - (op_moves - op_steps_from_center))
 
 class CustomPlayer:
     """Game-playing agent that chooses a move using your evaluation function
@@ -118,25 +184,70 @@ class CustomPlayer:
 
         self.time_left = time_left
 
-        # TODO: finish this function!
-
         # Perform any required initializations, including selecting an initial
         # move from the game board (i.e., an opening book), or returning
         # immediately if there are no legal moves
+
+        best_score = float('-inf')
+        best_move = (-1, -1)
+
+        if not legal_moves:
+            return best_move
+
+        center_x = int(game.width / 2)
+        center_y = int(game.height / 2)
+        center_move = (center_x, center_y)
+
+        # Set of moves other player cannot reflect
+        opening_book = [(center_x - 1, center_y),(center_x, center_y - 1),(center_x + 1, center_y),
+                        (center_x, center_y + 1),
+                        (center_x - 1, center_y - 1), (center_x + 1, center_y + 1), (center_x + 1, center_y - 1),
+                        (center_x - 1, center_y + 1)]
+
+        if game.move_count == 0:
+            if center_move in legal_moves:
+                return center_move
+            else:
+                return opening_book[random.randint(0, len(opening_book)-1)]
+        elif game.move_count == 1:
+            if center_move in legal_moves:
+                return center_move
+            else:
+                return opening_book[random.randint(0, len(opening_book)-1)]
 
         try:
             # The search method call (alpha beta or minimax) should happen in
             # here in order to avoid timeout. The try/except block will
             # automatically catch the exception raised by the search method
             # when the timer gets close to expiring
-            pass
+
+            if self.iterative:
+
+                current_depth = 1
+
+                while True:
+
+                    if self.method == 'alphabeta':
+                        _, best_move = self.alphabeta(game, current_depth)
+                    else:
+                        _, best_move = self.minimax(game, current_depth)
+
+                    current_depth += 1
+                else:
+                    raise Timeout()
+
+            else:
+                if self.method == 'alphabeta':
+                    _, best_move = self.alphabeta(game, self.search_depth)
+                else:
+                    _, best_move = self.minimax(game, self.search_depth)
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
-            pass
+            return best_move
 
         # Return the best move from the last completed search iteration
-        raise NotImplementedError
+        return best_move
 
     def minimax(self, game, depth, maximizing_player=True):
         """Implement the minimax search algorithm as described in the lectures.
@@ -172,8 +283,29 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        # Base Case: if there is no possible moves or the depth is 0
+        if depth <= 0:
+            return self.score(game, self), (-1, -1)
+
+        # Get possible moves
+        legal_moves = game.get_legal_moves()
+
+        if not legal_moves:
+            return self.score(game, self), (-1, -1)
+
+        score_move_list = []
+        for current_move in legal_moves:
+            current_game = game.forecast_move(current_move)
+
+            current_score, _ = self.minimax(current_game, depth-1, not maximizing_player)
+
+            score_move_list.append((current_score, current_move))
+
+        if maximizing_player:
+            return max(score_move_list)
+        else:
+            return min(score_move_list)
+
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True):
         """Implement minimax search with alpha-beta pruning as described in the
@@ -216,5 +348,45 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        # Base Case: if there is no possible moves or the depth is 0
+        if depth <= 0:
+            return self.score(game, self), (-1, -1)
+
+        # Get possible moves
+        legal_moves = game.get_legal_moves()
+
+        if not legal_moves:
+            return self.score(game, self), (-1, -1)
+
+        if maximizing_player:
+            best_value = float('-inf')
+            best_move = (-1, -1)
+
+            for current_move in legal_moves:
+                current_game = game.forecast_move(current_move)
+
+                current_score, _ = self.alphabeta(current_game, depth-1, alpha, beta, not maximizing_player)
+
+                if current_score > best_value:
+                    best_value = current_score
+                    best_move = current_move
+                if best_value >= beta:
+                    return best_value, best_move
+                alpha = max(best_value, alpha)
+        else:
+            best_value = float('inf')
+            best_move = (-1, -1)
+
+            for current_move in legal_moves:
+                current_game = game.forecast_move(current_move)
+
+                current_score, _ = self.alphabeta(current_game, depth - 1, alpha, beta, not maximizing_player)
+
+                if current_score < best_value:
+                    best_value = current_score
+                    best_move = current_move
+                if best_value <= alpha:
+                    return best_value, best_move
+                beta = min(best_value, beta)
+
+        return best_value, best_move
