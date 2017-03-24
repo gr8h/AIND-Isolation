@@ -7,7 +7,7 @@ You must test your agent's strength against a set of agents with known
 relative strength using tournament.py and include the results in your report.
 """
 import random
-
+import math
 
 class Timeout(Exception):
     """Subclass base exception for code clarity."""
@@ -37,10 +37,6 @@ def custom_score(game, player):
         The heuristic value of the current game state to the specified player.
     """
 
-    return custom_score_award_edge_moves(game, player)
-
-
-def custom_score_my_vs_op_moves(game, player):
     # Get Opponent
     opponent = game.get_opponent(player)
 
@@ -49,6 +45,21 @@ def custom_score_my_vs_op_moves(game, player):
         return float('inf')
     elif game.is_winner(opponent):
         return float('-inf')
+
+    return custom_score_award_edge_moves_magnify(game, player)
+
+
+def custom_score_my_vs_op_moves(game, player):
+
+    """
+    ID Improved: 70.71%
+    Student: 62.14%
+
+    This is the default heuristic from lecture i use it here as a benchmark.
+    """
+
+    # Get Opponent
+    opponent = game.get_opponent(player)
 
     # Evaluation function
     number_my_moves = len(game.get_legal_moves(player))
@@ -59,10 +70,17 @@ def custom_score_my_vs_op_moves(game, player):
 
 def custom_score_award_edge_moves(game, player):
 
-    if game.is_winner(player):
-        return float('inf')
-    if game.is_loser(player):
-        return float('-inf')
+    """
+    ID Improved: 69.29%
+    Student: 70.71%
+
+    This is heuristic since the moves is similar to the knight moves in chess i used the same idea in
+    Warnsdorff’s algorithm to award edge moves and penalize moves near to center as this will require
+    the agent to search very far, as the edge moves will have less next moves the agent will be done with all edge
+    moves first and then explore moves near the center if there is enough time.
+
+    I used 50 as constant to penalize the bad moves more.
+    """
 
     # Get Opponent
     opponent = game.get_opponent(player)
@@ -82,11 +100,46 @@ def custom_score_award_edge_moves(game, player):
     my_moves = len(game.get_legal_moves(player))
     op_moves = len(game.get_legal_moves(opponent))
 
-    return float((my_moves + my_steps_from_center) - 100*(op_moves + op_steps_from_center))
+    return float((my_moves + my_steps_from_center) - 100 * (op_moves + op_steps_from_center))
 
 
-def custom_score_penalize_edge_moves(game, player):
+def custom_score_award_edge_moves_distance(game, player):
 
+    """
+    ID Improved: 67.86%
+    Student: 59.29%
+    """
+
+    # Get Opponent
+    opponent = game.get_opponent(player)
+
+    # Get locations
+    my_location = game.get_player_location(player)
+    op_location = game.get_player_location(opponent)
+
+    # Determine how far from center
+    center_x = int(game.width / 2)
+    center_y = int(game.height / 2)
+
+    my_steps_from_center = abs(my_location[0] - center_x) + abs(my_location[1] - center_y)
+    op_steps_from_center = abs(op_location[0] - center_x) + abs(op_location[1] - center_y)
+
+    # Distance from center
+
+    my_distance = math.sqrt((center_x - my_location[0]) ** 2 + (center_y - my_location[1]) ** 2)
+    op_distance = math.sqrt((center_x - op_location[0]) ** 2 + (center_y - op_location[1]) ** 2)
+
+    return float(my_distance - 100 * op_distance)
+
+
+def custom_score_award_edge_moves_magnify(game, player):
+    """
+    ID Improved: 71.43%
+    Student: 71.14%
+
+    This is just and experimental heuristic that uses the same idea above however here i change the equation by
+    multiplying how far player from center is with the number of moves which will magnify the scores.
+    """
     # Get Opponent
     opponent = game.get_opponent(player)
 
@@ -105,7 +158,29 @@ def custom_score_penalize_edge_moves(game, player):
     my_moves = len(game.get_legal_moves(player))
     op_moves = len(game.get_legal_moves(opponent))
 
-    return float((my_moves - my_steps_from_center) - (op_moves - op_steps_from_center))
+    return float((my_moves * my_steps_from_center) - 25 * (op_moves * op_steps_from_center))
+
+
+def custom_score_blank_spaces(game, player):
+    """
+    ID Improved: 63.57%
+    Student: 73.57%
+
+    In this heuristic i used the number of remaining squares to motivate selecting good moves especially at the
+    beginning of the game.
+    """
+    # Get Opponent
+    opponent = game.get_opponent(player)
+
+    blank_spaces = len(game.get_blank_spaces())
+
+    # Available number of moves
+    my_moves = len(game.get_legal_moves(player))
+    op_moves = len(game.get_legal_moves(opponent))
+
+    return float((my_moves - blank_spaces) - (op_moves * blank_spaces))
+
+
 
 class CustomPlayer:
     """Game-playing agent that chooses a move using your evaluation function
