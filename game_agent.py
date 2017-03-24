@@ -46,7 +46,7 @@ def custom_score(game, player):
     elif game.is_winner(opponent):
         return float('-inf')
 
-    return custom_score_award_edge_moves_magnify(game, player)
+    return custom_score_blank_spaces(game, player)
 
 
 def custom_score_my_vs_op_moves(game, player):
@@ -163,8 +163,8 @@ def custom_score_award_edge_moves_magnify(game, player):
 
 def custom_score_blank_spaces(game, player):
     """
-    ID Improved: 63.57%
-    Student: 73.57%
+    ID Improved: 70.00%
+    Student: 63.57%
 
     In this heuristic i used the number of remaining squares to motivate selecting good moves especially at the
     beginning of the game.
@@ -369,6 +369,7 @@ class CustomPlayer:
             return self.score(game, self), (-1, -1)
 
         score_move_list = []
+        
         for current_move in legal_moves:
             current_game = game.forecast_move(current_move)
 
